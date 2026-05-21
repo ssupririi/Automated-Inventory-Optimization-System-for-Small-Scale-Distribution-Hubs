@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InventIQ — EOQ Inventory System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="main.css">
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">InventIQ</div>
+    <div class="logo-sub">EOQ INVENTORY SYSTEM</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-label">SYSTEM</div>
+    <div class="nav-item active" onclick="navigate('dashboard')">
+      <span class="nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+      </span>
+      Dashboard
+    </div>
+    <div class="nav-item" onclick="navigate('inventory')">
+      <span class="nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      </span>
+      Inventory
+    </div>
+    <div class="nav-item" onclick="navigate('calculator')">
+      <span class="nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><line x1="8" y1="10" x2="12" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg>
+      </span>
+      EOQ Calculator
+    </div>
+    <div class="nav-item" id="nav-alerts" onclick="navigate('alerts')">
+      <span class="nav-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </span>
+      Alerts
+      <span class="badge" id="alert-count">0</span>
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="version-tag">v1.0.0 · PROTOTYPE</div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div>
+      <div class="page-title" id="page-title">Dashboard</div>
+      <div class="page-sub" id="page-sub">Real-time inventory overview</div>
+    </div>
+    <div class="topbar-right">
+      <div class="timestamp" id="clock"></div>
+    </div>
+  </div>
+
+  <div class="screen active fade-in" id="screen-dashboard">
+    <div class="metric-row" id="metric-row"></div>
+
+    <div class="panel-row">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Stock Levels</div>
+          <div class="panel-tag">all products</div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="stock-chart"></canvas>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Recent Transactions</div>
+          <div class="panel-tag" id="tx-count-tag">0 entries</div>
+        </div>
+        <div id="tx-list"></div>
+      </div>
+    </div>
+
+    <div class="panel-full">
+      <div class="panel-header">
+        <div class="panel-title">Product Overview</div>
+        <div class="panel-tag">EOQ · ROP · status</div>
+      </div>
+      <table class="data-table" id="overview-table">
+        <thead>
+          <tr>
+            <th>PRODUCT</th>
+            <th>CURRENT STOCK</th>
+            <th>REORDER POINT</th>
+            <th>EOQ</th>
+            <th>STATUS</th>
+            <th>LEVEL</th>
+          </tr>
+        </thead>
+        <tbody id="overview-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="screen fade-in" id="screen-inventory">
+    <div class="panel-full">
+      <div class="panel-header">
+        <div class="panel-title">Stock Transaction</div>
+        <div class="panel-tag">add · remove · receive</div>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">SELECT PRODUCT</label>
+          <select class="form-select" id="tx-product"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">TRANSACTION TYPE</label>
+          <select class="form-select" id="tx-type">
+            <option value="in">Incoming — Stock Received</option>
+            <option value="out">Outgoing — Stock Dispatched</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">QUANTITY (UNITS)</label>
+          <input type="number" class="form-input" id="tx-qty" placeholder="0" min="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">REFERENCE / NOTE</label>
+          <input type="text" class="form-input" id="tx-note" placeholder="PO-2024-001 or delivery note">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="submitTransaction()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Record Transaction
+        </button>
+        <button class="btn btn-ghost" onclick="clearTxForm()">Clear</button>
+      </div>
+    </div>
+
+    <div class="panel-full">
+      <div class="panel-header">
+        <div class="panel-title">All Products — Inventory Ledger</div>
+        <div class="panel-tag">live stock levels</div>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>PRODUCT</th>
+            <th>CATEGORY</th>
+            <th>UNIT</th>
+            <th>IN STOCK</th>
+            <th>MIN THRESHOLD</th>
+            <th>UNIT COST (₱)</th>
+            <th>STOCK LEVEL</th>
+          </tr>
+        </thead>
+        <tbody id="inv-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="screen fade-in" id="screen-calculator">
+    <div class="formula-display">
+      <div class="formula-title">ECONOMIC ORDER QUANTITY FORMULA</div>
+      <div class="formula-eq">EOQ = √( 2 × D × S / H )</div>
+      <div class="formula-vars">
+        D = Annual Demand (units/year) &nbsp;·&nbsp;
+        S = Order Cost per order (₱) &nbsp;·&nbsp;
+        H = Holding Cost per unit per year (₱)
+      </div>
+    </div>
+
+    <div class="calc-layout">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Input Parameters</div>
+          <div class="panel-tag">per product</div>
+        </div>
+        <div class="calc-inputs">
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label">LOAD FROM PRODUCT</label>
+            <select class="form-select" id="calc-product" onchange="loadProductIntoCalc()">
+              <option value="">— manual entry —</option>
+            </select>
+          </div>
+          <hr class="calc-divider" style="margin-bottom:16px">
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label">ANNUAL DEMAND — D (units/year)</label>
+            <input type="number" class="form-input" id="calc-D" placeholder="e.g. 1200" oninput="runEOQ()">
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label">ORDER COST — S (₱ per order)</label>
+            <input type="number" class="form-input" id="calc-S" placeholder="e.g. 500" oninput="runEOQ()">
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label">HOLDING COST — H (₱/unit/year)</label>
+            <input type="number" class="form-input" id="calc-H" placeholder="e.g. 20" oninput="runEOQ()">
+          </div>
+          <div class="form-group" style="margin-bottom:14px">
+            <label class="form-label">LEAD TIME (DAYS)</label>
+            <input type="number" class="form-input" id="calc-L" placeholder="e.g. 7" oninput="runEOQ()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">UNIT COST (₱)</label>
+            <input type="number" class="form-input" id="calc-C" placeholder="e.g. 85" oninput="runEOQ()">
+          </div>
+        </div>
+      </div>
+
+      <div class="calc-result-area">
+        <div>
+          <div class="calc-result-label">OPTIMAL ORDER QUANTITY</div>
+          <div class="calc-result-big" id="res-eoq">—</div>
+          <div class="calc-result-unit">units per order</div>
+        </div>
+        <hr class="calc-divider">
+        <div class="calc-sub-grid">
+          <div class="calc-sub-card">
+            <div class="calc-result-label">REORDER POINT</div>
+            <div style="font-size:22px;font-weight:800;color:var(--yellow);font-family:var(--mono)" id="res-rop">—</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:4px">units</div>
+          </div>
+          <div class="calc-sub-card">
+            <div class="calc-result-label">ORDERS PER YEAR</div>
+            <div style="font-size:22px;font-weight:800;color:var(--blue);font-family:var(--mono)" id="res-orders">—</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:4px">orders</div>
+          </div>
+          <div class="calc-sub-card">
+            <div class="calc-result-label">ORDER CYCLE</div>
+            <div style="font-size:22px;font-weight:800;color:var(--purple);font-family:var(--mono)" id="res-cycle">—</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:4px">days between orders</div>
+          </div>
+          <div class="calc-sub-card">
+            <div class="calc-result-label">ANNUAL TOTAL COST</div>
+            <div style="font-size:22px;font-weight:800;color:var(--accent);font-family:var(--mono)" id="res-cost">—</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:4px">₱ / year</div>
+          </div>
+        </div>
+        <hr class="calc-divider">
+        <div>
+          <div class="calc-result-label" style="margin-bottom:8px">COST BREAKDOWN</div>
+          <div style="display:flex;flex-direction:column;gap:8px" id="cost-breakdown"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-full">
+      <div class="panel-header">
+        <div class="panel-title">Total Cost vs. Order Quantity</div>
+        <div class="panel-tag">EOQ minimizes combined cost</div>
+      </div>
+      <div style="padding:20px;height:260px">
+        <canvas id="cost-chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen fade-in" id="screen-alerts">
+    <div style="margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap" id="alert-summary-row"></div>
+    <div id="alert-list"></div>
+  </div>
+
+</main>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>
